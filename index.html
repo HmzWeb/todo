@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قائمة المهام المتقدمة</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white shadow-2xl rounded-2xl w-full max-w-md p-8 border-4 border-blue-200">
+        <h1 class="text-3xl font-bold text-center mb-6 text-blue-600 flex items-center justify-center">
+            <i class="fas fa-clipboard-list ml-3"></i> قائمة المهام
+        </h1>
+        
+        <div class="space-y-4">
+            <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                <input type="text" id="todoInput" placeholder="أدخل مهمة جديدة" 
+                    class="flex-grow p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="addTodoBtn" 
+                    class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div id="todoStats" class="text-center text-gray-600 text-sm">
+                مجموع المهام: <span id="totalTodos">0</span> | المكتملة: <span id="completedTodos">0</span>
+            </div>
+
+            <ul id="todoList" class="space-y-3 max-h-96 overflow-y-auto"></ul>
+        </div>
+    </div>
+
+    <script>
+        const todoInput = document.getElementById('todoInput');
+        const addTodoBtn = document.getElementById('addTodoBtn');
+        const todoList = document.getElementById('todoList');
+        const totalTodosSpan = document.getElementById('totalTodos');
+        const completedTodosSpan = document.getElementById('completedTodos');
+
+        // Load todos from localStorage
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${year}/${month}/${day}-${hours}-${minutes}`;
+        }
+
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+            updateStats();
+        }
+
+        function updateStats() {
+            totalTodosSpan.textContent = todos.length;
+            completedTodosSpan.textContent = todos.filter(todo => todo.completed).length;
+        }
+
+        function renderTodos() {
+            todoList.innerHTML = '';
+            todos.forEach((todo, index) => {
+                const li = document.createElement('li');
+                li.className = `flex items-center p-3 rounded-lg transition-all duration-300 ${
+                    todo.completed 
+                    ? 'bg-green-100 hover:bg-green-200' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`;
+                li.innerHTML = `
+                    <button class="complete-btn ml-3 text-xl" data-index="${index}">
+                        <i class="fas ${todo.completed ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-400'}"></i>
+                    </button>
+                    <div class="flex-grow">
+                        <span class="${todo.completed ? 'line-through text-gray-500' : ''}">
+                            ${todo.text}
+                        </span>
+                        <div class="text-xs text-gray-500 flex items-center">
+                            <i class="fas fa-clock ml-1"></i> ${todo.date || 'بدون تاريخ'}
+                        </div>
+                    </div>
+                    <button class="delete-btn text-red-500 text-xl mr-3" data-index="${index}">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                todoList.appendChild(li);
+            });
+            attachEventListeners();
+            updateStats();
+        }
+
+        function attachEventListeners() {
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = this.getAttribute('data-index');
+                    todos[index].completed = !todos[index].completed;
+                    saveTodos();
+                    renderTodos();
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = this.getAttribute('data-index');
+                    Swal.fire({
+                        title: 'هل أنت متأكد؟',
+                        text: "لن تتمكن من استعادة هذه المهمة!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'نعم، احذفها',
+                        cancelButtonText: 'إلغاء'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            todos.splice(index, 1);
+                            saveTodos();
+                            renderTodos();
+                            Swal.fire(
+                                'تم الحذف!',
+                                'تمت إزالة المهمة بنجاح.',
+                                'success'
+                            );
+                        }
+                    });
+                });
+            });
+        }
+
+        addTodoBtn.addEventListener('click', function() {
+            const text = todoInput.value.trim();
+
+            if (text) {
+                todos.push({
+                    text: text,
+                    date: getCurrentDateTime(),
+                    completed: false
+                });
+                todoInput.value = '';
+                saveTodos();
+                renderTodos();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'يرجى إدخال نص المهمة'
+                });
+            }
+        });
+
+        // Allow adding todo with Enter key
+        todoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodoBtn.click();
+            }
+        });
+
+        // Initial render
+        renderTodos();
+    </script>
+</body>
+</html>
